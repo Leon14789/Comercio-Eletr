@@ -1,133 +1,102 @@
--- Criação da tabela Produto
-create table Produto (
-    id_produto int AUTO_INCREMENT PRIMARY KEY,
-    nome varchar(255),
-    descricao varchar(255),
-    preco int,
-    quantidade_estoque int
+CREATE TABLE Produto (
+    id_produto INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255),
+    descricao VARCHAR(255),
+    preco INT,
+    quantidade_estoque INT
 );
 
--- Criação da tabela Pedidos
-create table Pedidos (
-    id_pedido int AUTO_INCREMENT PRIMARY KEY,
-    data_pedido date,
-    id_cliente int,
-    id_prod int
-    quantidade int,
-    status int,
-    FOREIGN KEY (id_pedido) REFERENCES Produtos(id_produto)
-     FOREIGN KEY (id_pedido) REFERENCES Cliente(id_cliente)
+CREATE TABLE Pedidos (
+    id_pedido INT AUTO_INCREMENT PRIMARY KEY,
+    data_pedido DATE,
+    id_cliente INT,
+    id_produto INT,
+    quantidade INT,
+    status INT,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_produto) REFERENCES Produto(id_produto)
 );
 
--- Criação da tabela Cliente
-create table Cliente (
-    id_cliente int AUTO_INCREMENT PRIMARY KEY,
-    nome varchar(255),
-    contato int,
-    endereco_entrega varchar(255)
+CREATE TABLE Cliente (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(255),
+    contato INT,
+    endereco_entrega VARCHAR(255)
 );
 
--- Stored Procedure para adicionar produtos ao carrinho de compras
-create procedure AdicionarProdutoAoCarrinho(
-    in cliente_id int,
-    in produto_id int,
-    in quantidade int
+DELIMITER //
+
+CREATE PROCEDURE AdicionarProdutoAoCarrinho(
+    IN cliente_id INT,
+    IN produto_id INT,
+    IN quantidade INT
 )
-begin
-    -- EM PROD AQUI FICARIA A LOGICA PARA ADD O PRODUTO AO CARRINHO
-end;
+BEGIN
+    DECLARE cliente_exist INT;
+    DECLARE produto_exist INT;
+    SELECT COUNT(*) INTO cliente_exist FROM Cliente WHERE id_cliente = cliente_id;
+    SELECT COUNT(*) INTO produto_exist FROM Produto WHERE id_produto = produto_id;
+    IF cliente_exist = 1 AND produto_exist = 1 THEN
+        INSERT INTO Pedidos (data_pedido, id_cliente, id_produto, quantidade, status)
+        VALUES (CURRENT_DATE, cliente_id, produto_id, quantidade, 0);
+        SELECT 'Produto adicionado ao carrinho com sucesso.' AS result;
+    ELSE
+        SELECT 'Cliente ou produto não encontrado.' AS result;
+    END IF;
+END;
+//
 
+DELIMITER ;
 
--- View que mostra o histórico de pedidos de um cliente específico
-create view HistoricoDePedidos as
-select
-    P.id_pedido,
-    P.data_pedido,
-    P.id_cliente,
-    C.nome as nome_cliente,
-    P.id_produto,
-    PR.nome as nome_produto,
-    P.quantidade,
-    P.status
-from Pedidos P
-join Cliente C on P.id_cliente = C.id_cliente
-join Produto PR on P.id_produto = PR.id_produto;
+DELIMITER //
 
--- View que fornece uma lista de todos os produtos disponíveis (não esgotados)
-create view ProdutosDisponiveis as
-select * from Produto where quantidade_estoque > 0;
+CREATE PROCEDURE ProcessarPedido(
+    IN pedido_id INT
+)
+BEGIN
+    DECLARE pedido_exist INT;
+    SELECT COUNT(*) INTO pedido_exist FROM Pedidos WHERE id_pedido = pedido_id;
+    IF pedido_exist = 1 THEN
+        DECLARE produto_id INT;
+        DECLARE quantidade INT;
+        SELECT id_produto, quantidade INTO produto_id, quantidade FROM Pedidos WHERE id_pedido = pedido_id;
+        DECLARE estoque INT;
+        SELECT quantidade_estoque INTO estoque FROM Produto WHERE id_produto = produto_id;
+        IF quantidade <= estoque THEN
+            UPDATE Produto SET quantidade_estoque = quantidade_estoque - quantidade WHERE id_produto = produto_id;
+            UPDATE Pedidos SET status = 1 WHERE id_pedido = pedido_id;
+            SELECT 'Pedido processado com sucesso.' AS result;
+        ELSE
+            SELECT 'Estoque insuficiente.' AS result;
+        END IF;
+    ELSE
+        SELECT 'Pedido não encontrado.' AS result;
+    END IF;
+END;
+//
 
--- Inserção de 20 registros na tabela Produto
-INSERT INTO Produto (nome, descricao, preco, quantidade_estoque)
-VALUES
-    ('Produto 1', 'Descrição do Produto 1', 10, 50),
-    ('Produto 2', 'Descrição do Produto 2', 15, 30),
-    ('Produto 3', 'Descrição do Produto 3', 20, 40),
-    ('Produto 4', 'Descrição do Produto 4', 25, 60),
-    ('Produto 5', 'Descrição do Produto 5', 12, 70),
-    ('Produto 6', 'Descrição do Produto 6', 18, 45),
-    ('Produto 7', 'Descrição do Produto 7', 22, 55),
-    ('Produto 8', 'Descrição do Produto 8', 28, 35),
-    ('Produto 9', 'Descrição do Produto 9', 30, 20),
-    ('Produto 10', 'Descrição do Produto 10', 35, 25),
-    ('Produto 11', 'Descrição do Produto 11', 40, 75),
-    ('Produto 12', 'Descrição do Produto 12', 45, 80),
-    ('Produto 13', 'Descrição do Produto 13', 50, 90),
-    ('Produto 14', 'Descrição do Produto 14', 55, 95),
-    ('Produto 15', 'Descrição do Produto 15', 60, 100),
-    ('Produto 16', 'Descrição do Produto 16', 65, 105),
-    ('Produto 17', 'Descrição do Produto 17', 70, 110),
-    ('Produto 18', 'Descrição do Produto 18', 75, 115),
-    ('Produto 19', 'Descrição do Produto 19', 80, 120),
-    ('Produto 20', 'Descrição do Produto 20', 85, 125);
+DELIMITER ;
 
--- Inserção de 20 registros na tabela Cliente
-INSERT INTO Cliente (nome, contato, endereco_entrega)
-VALUES
-    ('Cliente 1', 1234567891, 'Endereço Cliente 1'),
-    ('Cliente 2', 1234567892, 'Endereço Cliente 2'),
-    ('Cliente 3', 1234567893, 'Endereço Cliente 3'),
-    ('Cliente 4', 1234567894, 'Endereço Cliente 4'),
-    ('Cliente 5', 1234567895, 'Endereço Cliente 5'),
-    ('Cliente 6', 1234567896, 'Endereço Cliente 6'),
-    ('Cliente 7', 1234567897, 'Endereço Cliente 7'),
-    ('Cliente 8', 1234567898, 'Endereço Cliente 8'),
-    ('Cliente 9', 1234567899, 'Endereço Cliente 9'),
-    ('Cliente 10', 1234567890, 'Endereço Cliente 10'),
-    ('Cliente 11', 1234567801, 'Endereço Cliente 11'),
-    ('Cliente 12', 1234567802, 'Endereço Cliente 12'),
-    ('Cliente 13', 1234567803, 'Endereço Cliente 13'),
-    ('Cliente 14', 1234567804, 'Endereço Cliente 14'),
-    ('Cliente 15', 1234567805, 'Endereço Cliente 15'),
-    ('Cliente 16', 1234567806, 'Endereço Cliente 16'),
-    ('Cliente 17', 1234567807, 'Endereço Cliente 17'),
-    ('Cliente 18', 1234567808, 'Endereço Cliente 18'),
-    ('Cliente 19', 1234567809, 'Endereço Cliente 19'),
-    ('Cliente 20', 1234567810, 'Endereço Cliente 20');
+DELIMITER //
 
+CREATE PROCEDURE CalcularTotalPedido(
+    IN pedido_id INT,
+    OUT total INT
+)
+BEGIN
+    DECLARE pedido_exist INT;
+    SELECT COUNT(*) INTO pedido_exist FROM Pedidos WHERE id_pedido = pedido_id;
+    IF pedido_exist = 1 THEN
+        DECLARE produto_id INT;
+        DECLARE quantidade INT;
+        SELECT id_produto, quantidade INTO produto_id, quantidade FROM Pedidos WHERE id_pedido = pedido_id;
+        DECLARE preco_produto INT;
+        SELECT preco INTO preco_produto FROM Produto WHERE id_produto = produto_id;
+        SET total = preco_produto * quantidade;
+    ELSE
+        SET total = -1;
+    END IF;
+END;
+//
 
--- Inserção de 20 registros na tabela Pedidos (corrigido)
--- Os pedidos devem corresponder a clientes e produtos existentes na tabela
-INSERT INTO Pedidos (data_pedido, id_cliente, id_prod, status)
-VALUES
-    ('2023-10-29', 1, 1, 0),
-    ('2023-10-29', 2, 3, 0),
-    ('2023-10-29', 3, 5, 0),
-    ('2023-10-29', 4, 7, 0),
-    ('2023-10-29', 5, 9, 0),
-    ('2023-10-29', 6, 11, 0),
-    ('2023-10-29', 7, 13, 0),
-    ('2023-10-29', 8, 15, 0),
-    ('2023-10-29', 9, 17, 0),
-    ('2023-10-29', 10, 19, 0),
-    ('2023-10-29', 11, 2, 0),
-    ('2023-10-29', 12, 4, 0),
-    ('2023-10-29', 13, 6, 0),
-    ('2023-10-29', 14, 8, 0),
-    ('2023-10-29', 15, 10, 0),
-    ('2023-10-29', 16, 12, 0),
-    ('2023-10-29', 17, 14, 0),
-    ('2023-10-29', 18, 16, 0),
-    ('2023-10-29', 19, 18, 0),
-    ('2023-10-29', 20, 20, 0);
-
+DELIMITER ;
